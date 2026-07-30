@@ -1,0 +1,71 @@
+# requirements.txt — every version below is pinned exactly (verified against
+# PyPI at the time this was written), not a >= range. Install with:
+#   pip install -r requirements.txt
+#
+# This file was built by tracing every `import` actually used in the code
+# (not assumed) — see README.md → "Where each dependency is used" for the
+# file-by-file breakdown, and README.md → "Known compatibility notes" for
+# the one real version conflict flagged below (PaddleOCR vs numpy).
+
+# ── Core UI ──────────────────────────────────────────────────────────────────
+streamlit==1.60.0
+
+# ── PDF parsing ──────────────────────────────────────────────────────────────
+PyMuPDF==1.28.0
+pdfplumber==0.11.10
+
+# ── DOCX parsing ─────────────────────────────────────────────────────────────
+python-docx==1.2.0
+
+# ── OCR (default engine: EasyOCR — see config/settings.py OCR_ENGINES) ──────
+easyocr==1.7.2
+pytesseract==0.3.13        # also requires the Tesseract system binary — see README
+Pillow==12.3.0
+opencv-python-headless==4.13.0.92
+
+# ── Embeddings + reranking backbone ──────────────────────────────────────────
+sentence-transformers==5.6.1
+torch==2.13.0               # CPU wheel by default; large download (~1-2GB)
+
+# ── LLM provider SDKs (all 4 providers in the UI dropdown) ──────────────────
+groq==1.6.0
+google-genai==2.14.0        # `from google import genai` — Gemini LLM + embeddings
+openai==2.48.0              # used for both the OpenAI provider AND OpenRouter
+                             # (OpenRouter is called through openai's client
+                             # pointed at a different base_url)
+
+# ── Vector index + keyword search ────────────────────────────────────────────
+faiss-cpu==1.14.3
+rank-bm25==0.2.2
+
+# ── PDF output generation ────────────────────────────────────────────────────
+reportlab==5.0.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+numpy==2.5.1
+
+# ══════════════════════════════════════════════════════════════════════════
+# OPTIONAL — only needed if you actually select these in the app's settings.
+# Not installed by default; uncomment what you need.
+# ══════════════════════════════════════════════════════════════════════════
+
+# Cohere — only if you pick "Cohere Rerank" or "Cohere Embed" in the UI.
+# cohere==7.0.8
+
+# Camelot — table-extraction fallback, only used automatically when
+# pdfplumber finds zero tables on a page. Needs the Ghostscript system
+# binary too (see README). The code already catches ImportError and just
+# skips this fallback if it's not installed, so it's genuinely optional.
+# camelot-py[base]==2.0.0
+
+# PaddleOCR — only if you pick "PaddleOCR" as the OCR engine in the UI.
+# ⚠️ COMPATIBILITY NOTE (see README → Known compatibility notes): the code
+# calls PaddleOCR with its old (2.x) constructor arguments, so this MUST
+# stay on the 2.x line — installing paddleocr 3.x will crash with a
+# TypeError on unexpected keyword arguments (use_angle_cls, show_log).
+# paddlepaddle 2.6.2 is also capped below numpy 2.0 — installing this in
+# the SAME environment as the numpy==2.5.1 pinned above will conflict.
+# If you need PaddleOCR, install it in a separate venv, or downgrade numpy
+# in this one (functionality elsewhere in the app doesn't require numpy 2.x).
+# paddleocr==2.10.0
+# paddlepaddle==2.6.2

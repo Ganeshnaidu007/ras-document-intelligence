@@ -1,0 +1,19 @@
+[client]
+# Hides the "Deploy" button and reduces the top-right menu to just what's
+# needed (Rerun/Settings) — the supported way to do this. The old approach
+# hid the whole <header> via CSS, which is what silently took the sidebar's
+# expand/collapse arrow down with it (that element lives inside <header>).
+toolbarMode = "minimal"
+showErrorDetails = false   # don't show raw tracebacks to end users on crash
+
+[server]
+maxUploadSize = 50         # MB per file — matches what document parsing can realistically handle
+enableXsrfProtection = true
+# enableCORS is deliberately left at its default (true) — setting it to
+# false together with enableXsrfProtection=true is a contradictory
+# combination that Streamlit rejects at startup with a warning and
+# silently overrides. XSRF protection matters more here (real user
+# accounts, real passwords), so that's the one to keep.
+
+[browser]
+gatherUsageStats = false

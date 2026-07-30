@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# App runtime data — regenerated automatically, never commit
+temp/
+cache/embeddings/*.npy
+cache/embeddings/*.json
+generated_outputs/*
+!generated_outputs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# Local databases — user accounts, chat history, per-user document library.
+# These hold real (and potentially sensitive) user data generated at runtime;
+# they belong on the deployment's persistent disk, not in version control.
+data/ras_users.db
+data/user_documents/
+cache/feedback.db
+
+# HuggingFace / model cache set up by utils/model_cache.py
+.cache/
+hf_cache/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
