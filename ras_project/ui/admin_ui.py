@@ -22,15 +22,20 @@ def _ago(ts: float) -> str:
 
 
 def render_admin_page():
-    st.markdown("## 🛠️ Admin Dashboard")
-
     if not st.session_state.get("admin_authed"):
-        st.markdown('<div style="max-width:360px;margin:2rem auto 0">', unsafe_allow_html=True)
-        with st.form("admin_login"):
-            username = st.text_input("Admin username")
-            password = st.text_input("Admin password", type="password")
-            ok = st.form_submit_button("Log in", use_container_width=True, type="primary")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-page"></div>', unsafe_allow_html=True)
+        with st.container(key="auth_card"):
+            st.markdown('<div class="auth-orb o1"></div><div class="auth-orb o2"></div>',
+                       unsafe_allow_html=True)
+            st.markdown(
+                '<div class="auth-brand"><div class="auth-logo-badge">A</div>'
+                '<span class="auth-mark">Admin Dashboard</span>'
+                '<span class="auth-tagline">Restricted — authorized staff only</span></div>',
+                unsafe_allow_html=True)
+            with st.form("admin_login"):
+                username = st.text_input("Admin username", icon=":material/person:")
+                password = st.text_input("Admin password", type="password", icon=":material/lock:")
+                ok = st.form_submit_button("Log in", use_container_width=True, type="primary")
         if ok:
             # Constant-time comparison on both fields — a plain `==` on
             # strings short-circuits at the first mismatched character,
@@ -46,11 +51,14 @@ def render_admin_page():
                 st.error("Incorrect username or password.")
         return
 
+    st.markdown("## Admin Dashboard")
+
     users = user_store.list_all_users()
     hot_keys = session_cache.hot_keys()
     disk_mb = user_store.disk_usage_mb()
     db_mb = round(os.path.getsize(USER_DB_PATH) / 1024 / 1024, 2) if os.path.exists(USER_DB_PATH) else 0.0
 
+    st.markdown('<div class="admin-section-title">Overview</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total users", len(users))
     c2.metric("Hot chats in RAM now", f"{len(hot_keys)} / {MAX_HOT_USERS}")
@@ -61,18 +69,40 @@ def render_admin_page():
     capped = user_store.users_who_hit_cap_recently()
     if capped:
         st.divider()
-        st.markdown("### ⚠️ Hitting their upload cap repeatedly")
+        st.markdown('<div class="admin-section-title">Hitting their upload cap repeatedly</div>',
+                    unsafe_allow_html=True)
         st.caption("These users have hit the daily upload limit 2+ times in the last 24h — "
                   "consider raising their cap or checking in with them.")
         for u in capped:
-            st.caption(f"**{u['display_name']}** (@{u['username']}) — hit the cap {u['hits']} time(s)")
+            st.markdown(f'<span class="status-pill warn">cap hit ×{u["hits"]}</span> '
+                       f'&nbsp;**{u["display_name"]}** (@{u["username"]})', unsafe_allow_html=True)
 
     st.divider()
-    st.markdown("### Users")
+    st.markdown('<div class="admin-section-title">Users</div>', unsafe_allow_html=True)
     st.caption(f"Upload cap: {MAX_UPLOADS_PER_DAY} files / 24h per user")
-    if not users:
-        st.caption("No users yet.")
-    for u in users:
+
+    # ── Search + filter — client-side only, no new backend surface ────────
+    col_search, col_filter = st.columns([3, 1.4])
+    with col_search:
+        search_q = st.text_input("Search users", key="admin_user_search",
+                                 placeholder="Search by name or username...",
+                                 label_visibility="collapsed")
+    with col_filter:
+        filter_choice = st.selectbox("Filter", ["All users", "Hit cap recently"],
+                                     key="admin_user_filter", label_visibility="collapsed")
+
+    filtered_users = users
+    if search_q.strip():
+        q = search_q.strip().lower()
+        filtered_users = [u for u in filtered_users
+                          if q in u["display_name"].lower() or q in u["username"].lower()]
+    if filter_choice == "Hit cap recently":
+        capped_ids = {u["id"] for u in capped} if capped else set()
+        filtered_users = [u for u in filtered_users if u["id"] in capped_ids]
+
+    if not filtered_users:
+        st.caption("No users match your search/filter." if users else "No users yet.")
+    for u in filtered_users:
         with st.container(border=True):
             # Wider action-button columns than before — "Reset password" /
             # "Delete all data" were getting clipped/wrapped at 1.3 units
@@ -120,11 +150,11 @@ def render_admin_page():
 
     # ── Usage dashboard ───────────────────────────────────────────────────
     st.divider()
-    st.markdown("### Usage")
+    st.markdown('<div class="admin-section-title">Usage</div>', unsafe_allow_html=True)
     qpd = user_store.questions_per_day(days=30)
     if qpd:
         st.caption("Questions asked per day (last 30 days)")
-        st.bar_chart({row["day"]: row["count"] for row in qpd})
+        st.bar_chart({row["day"]: row["count"] for row in qpd}, color="#6366F1")
     else:
         st.caption("No questions asked yet.")
 
@@ -147,7 +177,7 @@ def render_admin_page():
             st.caption("No questions asked yet.")
 
     st.divider()
-    st.markdown("### Admin activity log")
+    st.markdown('<div class="admin-section-title">Admin activity log</div>', unsafe_allow_html=True)
     log = user_store.get_audit_log(limit=20)
     if not log:
         st.caption("No admin actions logged yet.")
@@ -156,8 +186,8 @@ def render_admin_page():
                   f"{entry['action']} · `{entry['target']}`")
 
     st.divider()
-    st.markdown("### Answer feedback")
-    st.caption("There's no separate Good/Poor button anymore — clicking 🔄 Regenerate on an "
+    st.markdown('<div class="admin-section-title">Answer feedback</div>', unsafe_allow_html=True)
+    st.caption("There's no separate Good/Poor button anymore — clicking Regenerate on an "
               "answer IS the negative signal (logged automatically). Every answer that's never "
               "regenerated is logged as implicitly good, so these numbers cover 100% of answers, "
               "not just the ones someone bothered to rate.")
@@ -173,7 +203,7 @@ def render_admin_page():
         if recent:
             with st.expander("Recent ratings", expanded=False):
                 for r in recent:
-                    tag = "✅ Good" if r["rating"] == 1 else "⚠️ Regenerated"
+                    tag = "Good" if r["rating"] == 1 else "Regenerated"
                     st.caption(f"[{_ago(r['timestamp'])}] **{tag}** ({r.get('provider','')}) — "
                               f"\"{r['question'][:80]}\"  \n{r['answer'][:160]}…")
         else:
@@ -182,6 +212,6 @@ def render_admin_page():
         st.caption(f"Feedback data unavailable: {e}")
 
     st.divider()
-    if st.button("Log out of admin"):
+    if st.button("Log out of admin", key="admin_logout_btn"):
         st.session_state.admin_authed = False
         st.rerun()

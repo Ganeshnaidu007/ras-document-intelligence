@@ -305,7 +305,14 @@ def save_document(user_id: int, filename: str, chunks: List[Dict[str, Any]], fil
 
 def get_document_source_path(doc_id: int, user_id: int) -> Optional[str]:
     """The permanent copy of the original PDF for this document, if one was
-    kept (see save_document). Used by the 'View in PDF' source feature."""
+    kept (see save_document). Used by the 'View in PDF' source feature.
+    Re-derives the expected path from the CURRENT project location first —
+    the absolute path stored in the DB at save-time goes stale the moment
+    the project folder is moved/renamed, which used to make this always
+    report 'not available' even when the PDF was sitting right there."""
+    expected = os.path.join(USER_DOCS_DIR, str(user_id), f"doc_{doc_id}_source.pdf")
+    if os.path.exists(expected):
+        return expected
     conn = get_conn()
     row = conn.execute("SELECT source_path FROM documents WHERE id=? AND user_id=?",
                        (doc_id, user_id)).fetchone()
@@ -334,10 +341,20 @@ def load_documents_chunks(doc_ids: List[int]) -> List[Dict[str, Any]]:
         doc_ids).fetchall()
     conn.close()
     all_chunks = []
-    for doc_id, user_id, meta_path in rows:
-        if not meta_path:
+    for doc_id, user_id, stored_meta_path in rows:
+        # Prefer the path re-derived from the CURRENT project location over
+        # whatever absolute path was baked into the DB at save time — if the
+        # project folder has since been moved/renamed (e.g. a different
+        # OneDrive/Desktop path), the stored string points nowhere even
+        # though the file itself is sitting right there under the new
+        # location. Only fall back to the stored path for the rare case
+        # where a file doesn't follow the standard naming pattern.
+        meta_path, vecs_path = _doc_paths(user_id, doc_id)
+        if not os.path.exists(meta_path) and stored_meta_path and os.path.exists(stored_meta_path):
+            meta_path = stored_meta_path
+            vecs_path = meta_path.replace("_meta.json", "_vecs.npy")
+        if not os.path.exists(meta_path):
             continue
-        vecs_path = meta_path.replace("_meta.json", "_vecs.npy")
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
                 chunks = json.load(f)
@@ -384,15 +401,18 @@ def delete_document(doc_id: int, user_id: int) -> bool:
     if not row:
         conn.close()
         return False
-    if row[0]:
-        for p in (row[0], row[0].replace("_meta.json", "_vecs.npy")):
+    meta_path, vecs_path = _doc_paths(user_id, doc_id)
+    for p in (meta_path, vecs_path, row[0], row[0].replace("_meta.json", "_vecs.npy") if row[0] else None):
+        if p:
             try:
                 if os.path.exists(p): os.remove(p)
             except OSError: pass
-    if row[1]:
-        try:
-            if os.path.exists(row[1]): os.remove(row[1])
-        except OSError: pass
+    expected_source = os.path.join(USER_DOCS_DIR, str(user_id), f"doc_{doc_id}_source.pdf")
+    for p in (expected_source, row[1]):
+        if p:
+            try:
+                if os.path.exists(p): os.remove(p)
+            except OSError: pass
     conn.execute("DELETE FROM documents WHERE id=? AND user_id=?", (doc_id, user_id))
     conn.commit(); conn.close()
     return True

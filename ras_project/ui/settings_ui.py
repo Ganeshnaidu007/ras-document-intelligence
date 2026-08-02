@@ -100,6 +100,7 @@ def render_ocr_settings():
 
 def render_output_settings():
     st.markdown('<span class="ras-label">Output</span>', unsafe_allow_html=True)
+    st.markdown('<div class="helper-note">Changes are saved automatically.</div>', unsafe_allow_html=True)
     st.session_state.output_format = st.selectbox(
         "Format", OUTPUT_FORMATS,
         index=OUTPUT_FORMATS.index(

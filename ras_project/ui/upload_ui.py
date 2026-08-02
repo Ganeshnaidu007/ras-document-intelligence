@@ -24,6 +24,7 @@ def _chip(f):
 
 def render_source_upload():
     st.markdown('<span class="label">Source Documents</span>', unsafe_allow_html=True)
+    st.markdown('<div class="helper-note">You can upload multiple PDFs, DOCX, or TXT files at once.</div>', unsafe_allow_html=True)
 
     remaining = None
     user_id = st.session_state.get("user_id")
@@ -84,6 +85,7 @@ def render_source_upload():
 
 def render_question_upload():
     st.markdown('<span class="label">Question Document</span>', unsafe_allow_html=True)
+    st.markdown('<div class="helper-note">Upload a document with your questions, or type them directly.</div>', unsafe_allow_html=True)
 
     tab_file, tab_text = st.tabs(["Upload file", "Type questions"])
     with tab_file:

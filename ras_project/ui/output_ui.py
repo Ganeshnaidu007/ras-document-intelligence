@@ -1,6 +1,13 @@
 """ui/output_ui.py — Answer output panel."""
 import streamlit as st
 
+try:
+    import pandas as pd
+    from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode, JsCode
+    _HAS_AGGRID = True
+except ImportError:
+    _HAS_AGGRID = False
+
 
 def _badge(label, score):
     cls = {"High":"badge-high","Medium":"badge-med","Low":"badge-low"}.get(label,"badge-na")
@@ -39,6 +46,67 @@ def _render_sources(chunks, key_prefix, user_id):
         _render_source_citation(c, key_prefix=f"{key_prefix}_{i}", user_id=user_id)
 
 
+def _render_overview_grid(answered):
+    """Bird's-eye AG Grid summary of every Q&A in this batch run — Q#,
+    question, confidence, cache/provider status — sitting above the full
+    detail cards below (which keep all their interactive features: verify
+    claims, regenerate, source citations). Purely additive display; if
+    streamlit-aggrid isn't installed, this section is skipped and nothing
+    else changes."""
+    if not _HAS_AGGRID or not answered:
+        return
+
+    rows = []
+    for item in answered:
+        conf = item.get("confidence") or {}
+        rows.append({
+            "#": item.get("number", ""),
+            "Question": (f'{item.get("prefix","")} {item.get("question","")}'.strip())[:90],
+            "Confidence": conf.get("label", "N/A"),
+            "Score": conf.get("score", -1) if conf.get("score", -1) is not None else -1,
+            "Cached": "Cached" if item.get("_cache_hit") else "—",
+            "Model": item.get("_provider", ""),
+        })
+    df = pd.DataFrame(rows)
+
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapText=False)
+    gb.configure_column("#", width=60, pinned="left")
+    gb.configure_column("Question", flex=3, tooltipField="Question")
+    gb.configure_column("Score", width=90,
+        cellStyle=JsCode("""
+            function(p){
+              if(p.value>=8) return {color:'#10B981', fontWeight:'700'};
+              if(p.value>=5) return {color:'#F59E0B', fontWeight:'700'};
+              if(p.value>=0) return {color:'#EF4444', fontWeight:'700'};
+              return {color:'#64748B'};
+            }"""))
+    gb.configure_column("Confidence", width=130,
+        cellStyle=JsCode("""
+            function(p){
+              const m={'High':'rgba(16,185,129,.16)','Medium':'rgba(245,158,11,.16)',
+                       'Low':'rgba(239,68,68,.16)'};
+              return {backgroundColor:(m[p.value]||'transparent'), borderRadius:'6px',
+                      fontWeight:'600', textAlign:'center'};
+            }"""))
+    gb.configure_column("Cached", width=110)
+    gb.configure_column("Model", width=110)
+    gb.configure_grid_options(domLayout="normal", suppressCellFocus=True,
+                              rowSelection="none", tooltipShowDelay=200)
+
+    with st.expander(f"Overview table ({len(answered)} answers)", expanded=len(answered) <= 12):
+        st.markdown('<div class="helper-note">Sort, filter, or resize columns — this is just a '
+                   'bird\'s-eye view; scroll down for full answers and sources.</div>',
+                   unsafe_allow_html=True)
+        AgGrid(
+            df, gridOptions=gb.build(), theme="alpine",
+            height=min(60 + 36 * len(rows), 420),
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+            allow_unsafe_jscode=True, update_mode="NO_UPDATE",
+            fit_columns_on_grid_load=True, key="batch_overview_grid",
+        )
+
+
 def render_output_section():
     data     = st.session_state.output_data
     answered = data.get("answered_questions", [])
@@ -60,17 +128,29 @@ def render_output_section():
         unsafe_allow_html=True,
     )
 
+    _render_overview_grid(answered)
+
     # ── Document summaries ───────────────────────────────────────────────────
     summaries = st.session_state.get("doc_summaries", [])
     if summaries:
         with st.expander(f"Document summaries ({len(summaries)})", expanded=False):
             for s in summaries:
-                src = s.get("source","?")
+                src    = s.get("source","?")
+                domain = s.get("domain","")
+                dtype  = s.get("document_type","")
+                meta   = " · ".join(filter(None,[domain,dtype]))
+                topics = s.get("key_topics",[])
+                t_html = "".join(
+                    f'<span style="display:inline-block;background:var(--bg3);border:1px solid var(--border);'
+                    f'border-radius:4px;padding:.1rem .5rem;font-size:.68rem;color:var(--tx3);margin:.15rem">{t}</span>'
+                    for t in topics)
                 st.markdown(
                     f'<div style="background:var(--bg2);border:1px solid var(--border);'
                     f'border-left:3px solid var(--accent);border-radius:8px;padding:1rem 1.25rem;margin-bottom:.75rem">'
-                    f'<div style="font-size:.78rem;font-weight:600;color:var(--tx);font-family:monospace;margin-bottom:.4rem">{src}</div>'
-                    f'<div style="font-size:.82rem;color:var(--tx2);line-height:1.65">{s.get("summary","")}</div>'
+                    f'<div style="font-size:.78rem;font-weight:600;color:var(--tx);font-family:monospace;margin-bottom:.2rem">{src}</div>'
+                    f'<div style="font-size:.68rem;color:var(--tx3);margin-bottom:.6rem">{meta}</div>'
+                    f'<div style="font-size:.82rem;color:var(--tx2);line-height:1.65">{s.get("summary","")[:500]}</div>'
+                    f'<div style="margin-top:.6rem">{t_html}</div>'
                     f'</div>',
                     unsafe_allow_html=True)
 
@@ -153,7 +233,7 @@ def render_output_section():
             if chunks:
                 tried_key = f"_regen_tried_{idx}"
                 tried = st.session_state.get(tried_key, [item.get("_provider", provider)])
-                if st.button("", key=f"regen_{idx}", icon="🔄", use_container_width=True,
+                if st.button("", key=f"regen_{idx}", icon=":material/refresh:", use_container_width=True,
                              help="Regenerate this answer with a different model"):
                     from llm.regenerate import regenerate
                     from utils.feedback_store import store_feedback

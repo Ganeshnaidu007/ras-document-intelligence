@@ -10,6 +10,18 @@
 # ── Core UI ──────────────────────────────────────────────────────────────────
 streamlit==1.60.0
 
+# ── UI extensions (redesign) ─────────────────────────────────────────────────
+# streamlit-extras → stylable_container, used to give the sidebar document
+#   cards a real bordered/selected-state box. Purely visual; the app already
+#   guards the import (`_HAS_EXTRAS`) and falls back to a plain st.container
+#   if this isn't installed, so it can never crash the app.
+# streamlit-aggrid → the "Overview table" above the Batch Q&A answer cards.
+#   Also import-guarded (`_HAS_AGGRID`); the app just skips that section if
+#   it's missing. All the existing per-answer cards (regenerate, verify
+#   claims, source citations) are unaffected either way.
+streamlit-extras==0.7.7
+streamlit-aggrid==1.2.1.post2
+
 # ── PDF parsing ──────────────────────────────────────────────────────────────
 PyMuPDF==1.28.0
 pdfplumber==0.11.10

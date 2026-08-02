@@ -29,35 +29,72 @@ html,body,[class*="css"]{font-family:'Inter',-apple-system,sans-serif!important}
 [data-testid="stHeader"]{background:var(--bg)!important;z-index:999991!important}
 [data-testid="stAppViewContainer"]{background:var(--bg)!important}
 
-/* ─── Tokens ─────────────────────────────────────────────────── */
+/* ─── Tokens — RAS Design System v3 (premium indigo/cyan palette) ──────── */
 :root{
-  --bg:       #0a0b0d;
-  --bg1:      #101215;
-  --bg2:      #16181c;
-  --bg3:      #1d2024;
-  --border:   #262a2f;
-  --border2:  #33383f;
-  --accent:   #2dd4bf;
-  --accent2:  #14b8a6;
-  --accent3:  rgba(45,212,191,.12);
-  --green:    #22c55e;
-  --amber:    #f59e0b;
-  --red:      #ef4444;
-  --blue:     #3b82f6;
-  --tx:       #e7e8ec;
-  --tx2:      #9298a1;
-  --tx3:      #565b63;
-  --r:        6px;
-  --r2:       10px;
-  --shadow:   0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.28);
+  /* Backgrounds — layered slate, never flat black */
+  --bg:       #0B1120;
+  --bg1:      #0F172A;
+  --bg2:      #111827;
+  --bg3:      #1E293B;
+  --card:     #1F2937;
+  --card2:    #273549;
+  --border:   #2A3446;
+  --border2:  #3B4A63;
+
+  /* Brand + semantic colors */
+  --accent:   #6366F1;   /* primary — indigo */
+  --accent2:  #818CF8;
+  --accent3:  rgba(99,102,241,.14);
+  --secondary:#06B6D4;   /* cyan */
+  --purple:   #8B5CF6;
+  --green:    #10B981;
+  --amber:    #F59E0B;
+  --red:      #EF4444;
+  --teal:     #14B8A6;
+  --cyan:     #06B6D4;
+  --blue:     #3B82F6;
+  --gray:     #64748B;
+
+  /* Gradients — every action button gets its own */
+  --grad-blue:   linear-gradient(135deg,#3B82F6,#2563EB);
+  --grad-purple: linear-gradient(135deg,#8B5CF6,#6366F1);
+  --grad-green:  linear-gradient(135deg,#10B981,#059669);
+  --grad-orange: linear-gradient(135deg,#F59E0B,#D97706);
+  --grad-red:    linear-gradient(135deg,#EF4444,#DC2626);
+  --grad-teal:   linear-gradient(135deg,#14B8A6,#0D9488);
+  --grad-cyan:   linear-gradient(135deg,#22D3EE,#06B6D4);
+  --grad-gray:   linear-gradient(135deg,#64748B,#475569);
+  --grad-hero:   linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%);
+
+  --tx:       #F1F5F9;
+  --tx2:      #94A3B8;
+  --tx3:      #64748B;
+  --r:        10px;
+  --r2:       16px;
+  --shadow:   0 1px 2px rgba(0,0,0,.35),0 12px 32px rgba(0,0,0,.35);
+  --shadow-glow: 0 0 0 1px rgba(99,102,241,.15),0 8px 28px rgba(99,102,241,.18);
+  --glass-bg: rgba(31,41,55,.55);
+  --glass-border: rgba(148,163,184,.14);
 }
 
+/* keep old variable names some pages still reference, mapped onto the new palette */
+:root{ --accent-teal: var(--accent); }
+
 /* ─── App shell ──────────────────────────────────────────────── */
-.stApp{background:var(--bg)!important;color:var(--tx)!important}
-[data-testid="stSidebar"]{background:var(--bg1)!important;border-right:1px solid var(--border)!important}
+.stApp{
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(99,102,241,.10), transparent 60%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(6,182,212,.08), transparent 55%),
+    var(--bg)!important;
+  color:var(--tx)!important;
+}
+[data-testid="stSidebar"]{
+  background:linear-gradient(180deg,var(--bg1),var(--bg2))!important;
+  border-right:1px solid var(--border)!important;
+}
 
 /* ─── Typography helpers ─────────────────────────────────────── */
-.label{font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);display:block;margin-bottom:.5rem}
+.label,.ras-label{font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);display:block;margin-bottom:.5rem}
 .caption{font-size:.75rem;color:var(--tx2);line-height:1.5}
 h1,h2,h3{color:var(--tx)!important}
 
@@ -323,17 +360,21 @@ h1,h2,h3{color:var(--tx)!important}
 }
 
 .stButton>button{
-  background:transparent!important;border:1px solid var(--border2)!important;
-  color:var(--tx2)!important;border-radius:var(--r)!important;
-  font-size:.8rem!important;font-weight:500!important;
-  padding:.38rem .9rem!important;transition:border-color .15s,color .15s!important;
-  box-shadow:none!important;
+  background:var(--accent)!important;border:1px solid var(--accent)!important;
+  color:#fff!important;border-radius:var(--r)!important;
+  font-size:.8rem!important;font-weight:600!important;
+  padding:.42rem 1rem!important;transition:filter .12s,transform .12s,box-shadow .12s!important;
+  box-shadow:0 3px 10px rgba(99,102,241,.3)!important;
 }
-.stButton>button:hover{border-color:var(--accent)!important;color:var(--accent)!important;background:transparent!important}
-.stButton>button:active{background:var(--accent3)!important}
+.stButton>button:hover{filter:brightness(1.1)!important;transform:translateY(-1px)!important;color:#fff!important}
+.stButton>button:active{transform:translateY(0)!important;filter:brightness(.95)!important}
+.stButton>button:disabled{
+  background:var(--bg3)!important;border-color:var(--border2)!important;
+  color:var(--tx3)!important;box-shadow:none!important;transform:none!important;
+}
 div[data-testid="stButton"]>button[kind="primary"]{
   background:var(--accent)!important;border-color:var(--accent)!important;
-  color:#04120f!important;font-weight:600!important;font-size:.875rem!important;
+  color:#fff!important;font-weight:600!important;font-size:.875rem!important;
   height:2.6rem!important;
 }
 div[data-testid="stButton"]>button[kind="primary"]:hover{background:var(--accent2)!important;border-color:var(--accent2)!important}
@@ -370,11 +411,104 @@ div[data-testid="stButton"]>button:has(span[data-testid]){
 
 hr{border-color:var(--border)!important;margin:1.5rem 0!important}
 
-/* ─── Auth page ──────────────────────────────────────────────── */
-.auth-shell{max-width:420px;margin:3.5rem auto 0 auto}
-.auth-brand{text-align:center;margin-bottom:2rem}
-.auth-mark{display:block;font-size:1.9rem;font-weight:700;color:var(--tx);letter-spacing:-.02em}
-.auth-tagline{display:block;font-size:.85rem;color:var(--tx3);margin-top:.15rem}
+/* ─── Auth page — premium SaaS login/signup ─────────────────────────────
+   The whole viewport gets a vivid gradient backdrop with soft floating
+   blobs; the form itself sits in a frosted glass card on top. Built with
+   plain CSS (no JS) so it survives Streamlit reruns without extra state. */
+.stApp:has(.auth-page){
+  background:
+    radial-gradient(900px 500px at 8% 0%, rgba(139,92,246,.35), transparent 55%),
+    radial-gradient(900px 550px at 95% 15%, rgba(6,182,212,.30), transparent 55%),
+    radial-gradient(1100px 700px at 50% 120%, rgba(99,102,241,.30), transparent 60%),
+    linear-gradient(160deg,#0B1120 0%,#0F172A 45%,#111827 100%)!important;
+}
+.auth-page{max-width:460px;margin:2.25rem auto 0 auto;position:relative}
+.auth-orb{
+  position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;z-index:0;
+  animation:authFloat 9s ease-in-out infinite;
+}
+.auth-orb.o1{width:220px;height:220px;background:var(--accent);top:-90px;left:-70px}
+.auth-orb.o2{width:180px;height:180px;background:var(--secondary);bottom:-70px;right:-60px;animation-delay:2.5s}
+@keyframes authFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+
+.auth-card, .st-key-auth_card{
+  position:relative;z-index:1;
+  background:var(--glass-bg);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid var(--glass-border);
+  border-radius:22px;
+  padding:2.5rem 2.25rem 1.75rem;
+  box-shadow:var(--shadow-glow),0 20px 60px rgba(0,0,0,.45);
+  animation:fadeInUp .4s ease-out;
+}
+.auth-brand{text-align:center;margin-bottom:1.6rem}
+.auth-logo-badge{
+  width:56px;height:56px;border-radius:16px;margin:0 auto .9rem;
+  background:var(--grad-hero);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.02em;
+  box-shadow:0 8px 24px rgba(99,102,241,.45);
+}
+.auth-mark{
+  display:block;font-size:1.65rem;font-weight:800;letter-spacing:-.02em;
+  background:var(--grad-hero);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.auth-tagline{display:block;font-size:.85rem;color:var(--tx2);margin-top:.3rem;font-weight:400}
+.auth-welcome{
+  text-align:center;font-size:1.05rem;font-weight:600;color:var(--tx);
+  margin:1.3rem 0 .15rem;
+}
+.auth-sub{text-align:center;font-size:.8rem;color:var(--tx3);margin-bottom:.5rem}
+
+.auth-note{
+  display:flex;align-items:center;gap:.5rem;margin-top:1rem;
+  font-size:.72rem;color:var(--tx3);justify-content:center;
+}
+.auth-note svg{flex-shrink:0}
+
+/* Auth form fields — roomier, glowing focus ring in brand indigo */
+.auth-card, .st-key-auth_card .stTextInput>div>div>input{
+  background:rgba(15,23,42,.55)!important;border:1px solid var(--border2)!important;
+  border-radius:12px!important;height:2.85rem!important;font-size:.88rem!important;
+}
+.auth-card, .st-key-auth_card .stTextInput>div>div>input:focus{
+  border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(99,102,241,.22)!important;
+}
+.auth-card, .st-key-auth_card .stSelectbox>div>div>div{border-radius:12px!important;background:rgba(15,23,42,.55)!important}
+
+/* Animated gradient primary button for auth actions */
+.auth-card, .st-key-auth_card div[data-testid="stFormSubmitButton"]>button,
+.auth-card, .st-key-auth_card div[data-testid="stButton"]>button[kind="primary"]{
+  background:var(--grad-hero)!important;background-size:180% 180%!important;
+  border:none!important;color:#fff!important;font-weight:700!important;
+  height:2.9rem!important;border-radius:12px!important;font-size:.9rem!important;
+  letter-spacing:.01em;
+  box-shadow:0 10px 26px rgba(99,102,241,.35)!important;
+  transition:background-position .5s ease,transform .15s ease,box-shadow .15s ease!important;
+}
+.auth-card, .st-key-auth_card div[data-testid="stFormSubmitButton"]>button:hover,
+.auth-card, .st-key-auth_card div[data-testid="stButton"]>button[kind="primary"]:hover{
+  background-position:100% 0!important;transform:translateY(-1px)!important;
+  box-shadow:0 14px 32px rgba(99,102,241,.5)!important;
+}
+.auth-card, .st-key-auth_card div[data-testid="stFormSubmitButton"]>button:active{transform:translateY(0)!important}
+
+.auth-card, .st-key-auth_card .stTabs [data-baseweb="tab-list"]{
+  justify-content:center!important;gap:.4rem!important;border-bottom:1px solid var(--border)!important;
+}
+.auth-card, .st-key-auth_card .stTabs [data-baseweb="tab"]{
+  border-radius:8px 8px 0 0!important;padding:.5rem 1.2rem!important;
+}
+.auth-card, .st-key-auth_card .stTabs [aria-selected="true"]{
+  background:var(--accent3)!important;border-bottom-color:var(--accent)!important;color:var(--accent2)!important;
+}
+
+/* pw-toggle checkbox styled as a small "show password" link, not a box */
+.pw-toggle-row{margin-top:-.6rem;margin-bottom:.4rem}
+.pw-toggle-row .stCheckbox{transform:scale(.85);transform-origin:left center}
+.pw-toggle-row label p{font-size:.72rem!important;color:var(--tx3)!important}
 
 [data-testid="metric-container"]{
   background:var(--bg2)!important;border:1px solid var(--border)!important;
@@ -396,22 +530,27 @@ hr{border-color:var(--border)!important;margin:1.5rem 0!important}
 }
 .sidebar-divider{height:1px;background:var(--border);margin:1rem 0}
 
-/* Chat-list / doc-list rows: flat, left-aligned, subtle hover — not
-   bordered boxes. The "New chat" button (kind=primary) keeps its filled
-   accent treatment; everything else in the sidebar is a quiet list row. */
-[data-testid="stSidebar"] .stButton>button{
+/* Chat-list rows only: flat, left-aligned, subtle hover — not bordered
+   boxes. Scoped tightly to the session-switch buttons (key "sess_{id}")
+   so it doesn't flatten every other sidebar button (Process & add, Build
+   Knowledge, rename/delete/download, etc.) — those keep their real
+   button look so they're recognizable as buttons. */
+[data-testid="stSidebar"] [class*="st-key-sess_"]:not([class*="st-key-sess_del"]) button{
   border:none!important;background:transparent!important;color:var(--tx2)!important;
   text-align:left!important;justify-content:flex-start!important;
   font-size:.83rem!important;font-weight:400!important;padding:.45rem .6rem!important;
+  box-shadow:none!important;
 }
-[data-testid="stSidebar"] .stButton>button:hover{background:var(--bg3)!important;color:var(--tx)!important}
+[data-testid="stSidebar"] [class*="st-key-sess_"]:not([class*="st-key-sess_del"]) button:hover{
+  background:var(--bg3)!important;color:var(--tx)!important;
+}
 [data-testid="stSidebar"] div[data-testid="stButton"]>button[kind="primary"]{
-  background:var(--accent3)!important;border:1px solid transparent!important;
-  color:var(--accent)!important;font-weight:600!important;text-align:center!important;
+  background:var(--accent)!important;border:1px solid var(--accent)!important;
+  color:#fff!important;font-weight:600!important;text-align:center!important;
   justify-content:center!important;height:2.4rem!important;
 }
 [data-testid="stSidebar"] div[data-testid="stButton"]>button[kind="primary"]:hover{
-  background:var(--accent)!important;color:#04120f!important;
+  background:var(--accent2)!important;
 }
 
 /* ─── Chat messages: plain assistant text, right-aligned user bubble ─── */
@@ -485,6 +624,323 @@ div[data-testid="stButton"]>button:has(> div > [data-testid="stIconMaterial"]):h
 div[data-testid="stButton"]>button:has(span[data-testid]):has(p:empty):not([kind="primary"]):hover{
   background:var(--bg3)!important;border-color:var(--border2)!important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   BUTTON SYSTEM — one constrained palette, no per-action rainbow.
+     Primary   → purple/indigo accent  (main CTA: New chat, nav pills)
+     Secondary → dark, bordered        (neutral actions: log out, add text)
+     Info      → solid blue            (Process & add, Build Knowledge
+                                         Base from Selection — the two
+                                         document-ingestion actions)
+     Danger    → outline red → fills   (destructive: delete confirm)
+   Every solid variant shares the same radius/shadow/hover-lift mixin so
+   the only thing that changes button-to-button is which one is used.
+   ════════════════════════════════════════════════════════════════════ */
+.st-key-new_chat_btn button,
+.st-key-lib_process_btn button,
+.st-key-btn_mode_batch button[kind="primary"],
+.st-key-btn_mode_chat button[kind="primary"],
+.st-key-apply_docs_btn button,
+.st-key-phase1_next button,
+.st-key-add_src_txt button,
+.st-key-use_q_text button,
+.st-key-export_qa_btn button,
+[class*="st-key-doc_del_yes_"] button,
+[class*="st-key-sess_del_yes_"] button,
+.st-key-nav_logout_btn button{
+  border:none!important;color:#fff!important;font-weight:600!important;
+  border-radius:10px!important;box-shadow:0 4px 14px rgba(0,0,0,.22)!important;
+  transition:transform .12s ease,box-shadow .12s ease,filter .12s ease!important;
+}
+.st-key-new_chat_btn button:hover,
+.st-key-lib_process_btn button:hover,
+.st-key-btn_mode_batch button[kind="primary"]:hover,
+.st-key-btn_mode_chat button[kind="primary"]:hover,
+.st-key-apply_docs_btn button:hover,
+.st-key-phase1_next button:hover,
+.st-key-add_src_txt button:hover,
+.st-key-use_q_text button:hover,
+.st-key-export_qa_btn button:hover,
+[class*="st-key-doc_del_yes_"] button:hover,
+[class*="st-key-sess_del_yes_"] button:hover,
+.st-key-nav_logout_btn button:hover{
+  transform:translateY(-1px)!important;filter:brightness(1.08)!important;
+}
+.st-key-new_chat_btn button:active,
+.st-key-lib_process_btn button:active{transform:translateY(0)!important}
+
+/* Primary — purple: the main call-to-action in whatever panel it's in */
+.st-key-new_chat_btn button,
+.st-key-btn_mode_batch button[kind="primary"],
+.st-key-btn_mode_chat button[kind="primary"],
+.st-key-phase1_next button{background:var(--accent)!important}
+
+/* Info — blue, highlighted: the two document-ingestion actions —
+   "Process & add" and "Build Knowledge Base from Selection" — share the
+   same strong blue so they read as the primary path through the sidebar. */
+.st-key-lib_process_btn button,
+.st-key-apply_docs_btn button{
+  background:var(--blue)!important;
+  box-shadow:0 4px 16px rgba(59,130,246,.4)!important;
+}
+
+/* Segmented nav — inactive state stays dark/bordered so the active pill
+   (solid accent, from the Primary group above) is the only one that
+   reads as "selected". Without this, both would render identically once
+   every plain button became solid-filled by default. */
+.st-key-btn_mode_batch button:not([kind="primary"]),
+.st-key-btn_mode_chat button:not([kind="primary"]){
+  background:var(--bg3)!important;border:1px solid var(--border2)!important;
+  color:var(--tx2)!important;box-shadow:none!important;
+}
+.st-key-btn_mode_batch button:not([kind="primary"]):hover,
+.st-key-btn_mode_chat button:not([kind="primary"]):hover{
+  border-color:var(--accent)!important;color:var(--tx)!important;
+}
+
+/* Secondary — dark, bordered: neutral utility actions */
+.st-key-add_src_txt button,.st-key-use_q_text button,
+.st-key-export_qa_btn button,.st-key-nav_logout_btn button{
+  background:var(--bg3)!important;border:1px solid var(--border2)!important;
+  box-shadow:none!important;
+}
+
+/* Danger — red: only ever the actual destructive confirmation */
+[class*="st-key-doc_del_yes_"] button,
+[class*="st-key-sess_del_yes_"] button{background:var(--red)!important}
+
+/* ── Outline icon-only actions (rename / delete-trigger / download /
+   regenerate / view-source) — transparent by default, color only shows on
+   hover. This matches "FILE ACTION BUTTONS" in the design brief exactly:
+   no filled circles at rest, small rounded corners, colored hover state. */
+[class*="st-key-doc_rename_btn_"] button,
+[class*="st-key-doc_del_btn_"] button,
+[class*="st-key-sess_del_"]:not([class*="_yes_"]):not([class*="_no_"]) button,
+[class*="st-key-doc_dl_"] button,
+[class*="st-key-regen_"] button,
+[class*="st-key-pdfbtn_"] button{
+  background:transparent!important;color:var(--tx2)!important;
+  border:1px solid var(--border2)!important;border-radius:8px!important;
+  box-shadow:none!important;transition:all .12s ease!important;
+}
+[class*="st-key-doc_rename_btn_"] button:hover{
+  border-color:var(--accent)!important;color:var(--accent2)!important;background:var(--accent3)!important;
+}
+[class*="st-key-doc_del_btn_"] button,
+[class*="st-key-sess_del_"]:not([class*="_yes_"]):not([class*="_no_"]) button{
+  border-color:rgba(239,68,68,.4)!important;color:var(--red)!important;
+}
+[class*="st-key-doc_del_btn_"] button:hover,
+[class*="st-key-sess_del_"]:not([class*="_yes_"]):not([class*="_no_"]) button:hover{
+  background:var(--red)!important;color:#fff!important;border-color:var(--red)!important;
+}
+[class*="st-key-doc_dl_"] button:hover{
+  border-color:var(--blue)!important;color:var(--blue)!important;background:rgba(59,130,246,.1)!important;
+}
+[class*="st-key-regen_"] button:hover,
+[class*="st-key-pdfbtn_"] button:hover{
+  border-color:var(--accent)!important;color:var(--accent2)!important;background:var(--accent3)!important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   CHAT MESSAGES v2 — avatars, timestamps, streaming cursor, bubbles
+   ════════════════════════════════════════════════════════════════════ */
+/* No avatar glyphs — Claude/ChatGPT-style plain bubbles, no mascot/robot/
+   sparkle icon. The avatar element is kept in the DOM (collapsed to zero
+   size) rather than display:none so the :has() selectors below — which are
+   how this stylesheet tells a user bubble from an assistant bubble at all —
+   keep matching. */
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessageAvatarAssistant"]{
+  width:0!important;height:0!important;min-width:0!important;
+  padding:0!important;margin:0!important;overflow:hidden!important;
+  border:none!important;box-shadow:none!important;background:transparent!important;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"]{
+  background:linear-gradient(135deg,var(--card),var(--card2))!important;
+  border:1px solid var(--border2)!important;border-radius:16px 16px 4px 16px!important;
+  box-shadow:0 4px 16px rgba(0,0,0,.25)!important;
+}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"]{
+  background:var(--bg1)!important;border:1px solid var(--border)!important;
+  border-left:3px solid var(--accent)!important;border-radius:4px 16px 16px 16px!important;
+  padding:1rem 1.2rem!important;box-shadow:var(--shadow)!important;
+}
+.chat-timestamp{font-size:.65rem;color:var(--tx3);margin-top:.3rem;letter-spacing:.02em}
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) .chat-timestamp{text-align:right}
+
+.stream-cursor{display:inline-block;width:2px;height:1em;background:var(--accent);
+  margin-left:2px;vertical-align:text-bottom;animation:blink 1s step-start infinite}
+@keyframes blink{50%{opacity:0}}
+
+[data-testid="stChatInput"]{
+  border-radius:1.6rem!important;border:1px solid var(--border2)!important;
+  background:linear-gradient(135deg,var(--card),var(--bg2))!important;
+  max-width:52rem;margin:0 auto!important;
+  box-shadow:0 6px 20px rgba(0,0,0,.3)!important;
+}
+[data-testid="stChatInput"]:focus-within{
+  border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(99,102,241,.18)!important;
+}
+
+/* ── Helper notes — small, subtle, dismissible-looking hint lines ──────── */
+.helper-note{
+  display:flex;align-items:center;gap:.45rem;
+  font-size:.72rem;color:var(--tx3);
+  background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.14);
+  border-radius:8px;padding:.45rem .7rem;margin:.4rem 0 .7rem;
+}
+.helper-note b{color:var(--accent2);font-weight:600}
+
+/* ── Empty state with CTA ───────────────────────────────────────────── */
+.empty-state-cta-wrap{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:4rem 1rem 2rem;
+}
+.empty-illustration{
+  width:84px;height:84px;border-radius:24px;margin-bottom:1.2rem;
+  background:var(--grad-hero);opacity:.16;
+  display:flex;align-items:center;justify-content:center;
+}
+.empty-illustration svg{opacity:1}
+
+/* ── Success toast ready-banner ─────────────────────────────────────── */
+.ready-banner{
+  display:flex;align-items:center;gap:.6rem;
+  background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(6,182,212,.10));
+  border:1px solid rgba(16,185,129,.35);border-radius:12px;
+  padding:.75rem 1rem;margin:.6rem 0 1rem;
+  animation:fadeInUp .3s ease-out;
+}
+.ready-banner b{color:var(--green)}
+
+/* ── Skeleton loading blocks ────────────────────────────────────────── */
+.skeleton{
+  background:linear-gradient(90deg,var(--card) 25%,var(--card2) 37%,var(--card) 63%);
+  background-size:400% 100%;animation:skeletonShine 1.4s ease infinite;
+  border-radius:8px;
+}
+@keyframes skeletonShine{0%{background-position:100% 50%}100%{background-position:0 50%}}
+
+/* ── Document cards (uploaded documents panel) ─────────────────────── */
+.doc-card{
+  display:flex;align-items:center;gap:.7rem;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:.7rem .9rem;margin-bottom:.5rem;transition:border-color .15s,box-shadow .15s;
+}
+.doc-card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 4px 14px rgba(99,102,241,.18)}
+.doc-card .doc-icon{
+  width:34px;height:34px;border-radius:8px;flex-shrink:0;
+  background:var(--grad-red);display:flex;align-items:center;justify-content:center;
+  font-size:.62rem;font-weight:800;color:#fff;
+}
+.doc-card .doc-meta{flex:1;min-width:0}
+.doc-card .doc-name{font-size:.82rem;font-weight:600;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-card .doc-sub{font-size:.68rem;color:var(--tx3);margin-top:.1rem}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN DASHBOARD
+   ════════════════════════════════════════════════════════════════════ */
+[class*="st-key-resetpw_"] button{background:var(--grad-cyan)!important;border:none!important;color:#fff!important;font-weight:600!important}
+[class*="st-key-del_confirm_"] button{background:var(--grad-red)!important;border:none!important;color:#fff!important;font-weight:700!important}
+[class*="st-key-del_"]:not([class*="_confirm_"]):not([class*="_cancel_"]) button{background:var(--grad-orange)!important;border:none!important;color:#fff!important;font-weight:600!important}
+[class*="st-key-del_cancel_"] button{background:var(--grad-gray)!important;border:none!important;color:#fff!important}
+[class*="st-key-resetpw_"] button,[class*="st-key-del_"] button{
+  border-radius:8px!important;box-shadow:0 3px 10px rgba(0,0,0,.25)!important;
+  transition:transform .12s ease,filter .12s ease!important;
+}
+[class*="st-key-resetpw_"] button:hover,[class*="st-key-del_"] button:hover{transform:translateY(-1px)!important;filter:brightness(1.08)!important}
+
+[data-testid="metric-container"]{
+  background:linear-gradient(160deg,var(--card),var(--bg2))!important;
+  border:1px solid var(--border)!important;border-radius:14px!important;
+  padding:1.1rem 1.2rem!important;box-shadow:var(--shadow)!important;
+  border-top:2px solid var(--accent)!important;
+}
+[data-testid="stMetricValue"]{
+  background:var(--grad-hero)!important;-webkit-background-clip:text!important;
+  background-clip:text!important;-webkit-text-fill-color:transparent!important;
+}
+
+.admin-section-title{
+  display:flex;align-items:center;gap:.5rem;font-size:1rem;font-weight:700;
+  color:var(--tx);margin:1.5rem 0 .75rem;
+}
+.status-pill{
+  display:inline-flex;align-items:center;gap:.3rem;font-size:.65rem;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;padding:.18rem .6rem;border-radius:20px;
+}
+.status-pill.ok{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.status-pill.warn{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
+
+/* Admin user rows — bordered containers get a subtle card treatment */
+[data-testid="stVerticalBlockBorderWrapper"]{
+  background:var(--card)!important;border:1px solid var(--border)!important;
+  border-radius:12px!important;
+}
+
+.stTextInput[class*="admin-search"]{max-width:340px}
+
+/* ══════════════════════════════════════════════════════════════════════
+   AG GRID (streamlit-aggrid) — Batch Q&A overview table
+   AG Grid's Alpine theme is built on CSS custom properties, so it can be
+   restyled to match the rest of the app without fighting internal markup.
+   ════════════════════════════════════════════════════════════════════ */
+.ag-theme-alpine{
+  --ag-background-color: var(--bg1);
+  --ag-foreground-color: var(--tx);
+  --ag-header-background-color: var(--card2);
+  --ag-header-foreground-color: var(--tx);
+  --ag-odd-row-background-color: var(--card);
+  --ag-row-hover-color: rgba(99,102,241,.10);
+  --ag-border-color: var(--border);
+  --ag-secondary-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-font-family: inherit;
+  --ag-font-size: 12.5px;
+  --ag-cell-horizontal-padding: 12px;
+  --ag-header-height: 38px;
+  --ag-row-height: 36px;
+  --ag-selected-row-background-color: rgba(99,102,241,.16);
+  border-radius:12px!important;overflow:hidden;
+  border:1px solid var(--border)!important;
+  box-shadow:var(--shadow);
+}
+.ag-theme-alpine .ag-header{border-bottom:1px solid var(--border)!important;font-weight:700}
+.ag-theme-alpine .ag-cell{display:flex;align-items:center}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RESPONSIVENESS — desktop is the default above; these narrow the
+   layout down for laptop and tablet widths without changing any
+   structure, only spacing/columns. ════════════════════════════════════ */
+@media (max-width: 1200px){
+  .block-container{padding-left:1.5rem!important;padding-right:1.5rem!important}
+  .upload-grid{grid-template-columns:1fr}
+}
+@media (max-width: 900px){
+  .block-container{padding:3.5rem 1rem 3rem!important}
+  .product-name{font-size:1.15rem!important}
+  .product-sub-title{font-size:.75rem!important}
+  [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]){max-width:88%!important}
+  [data-testid="stChatMessage"]{max-width:100%!important}
+  .stats-bar{flex-wrap:wrap!important}
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — visible keyboard focus rings and a minimum comfortable
+   tap-target size on every interactive control (buttons, tabs, checkbox
+   labels), on top of the color-contrast already built into the palette
+   above (light text on dark backgrounds throughout, semantic colors kept
+   away from pure red/green pairings for status). ════════════════════
+   ════════════════════════════════════════════════════════════════════ */
+.stButton>button:focus-visible,
+.stTextInput input:focus-visible,
+[data-testid="stChatInput"] textarea:focus-visible,
+.stTabs [data-baseweb="tab"]:focus-visible{
+  outline:2px solid var(--accent2)!important;outline-offset:2px!important;
+}
+.stButton>button{min-height:2.4rem!important}
+.stCheckbox,.stRadio{min-height:1.6rem}
 
 </style>
 """

@@ -82,8 +82,9 @@ def _topbar():
     with c_logo:
         st.markdown(
             '<div class="topbar-left" style="display:flex;align-items:center;height:100%;">'
-            '  <div class="logo">R</div>'
-            '  <div><div class="product-name">RAS</div>'
+            '  <div class="logo" style="background:var(--grad-hero);box-shadow:0 4px 14px rgba(99,102,241,.4)">R</div>'
+            '  <div><div class="product-name" style="background:var(--grad-hero);'
+            '       -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">RAS</div>'
             '       <div class="product-sub-title">Document Intelligence</div></div>'
             '</div>', unsafe_allow_html=True)
     with c_batch:
@@ -292,40 +293,44 @@ def _phase2():
     # ── Feature selection ──────────────────────────────────────────────────────
     st.markdown('<span class="label" style="margin-top:1.5rem;display:block">Optional Features</span>',
                 unsafe_allow_html=True)
+    st.markdown('<div class="helper-note">Changes are saved automatically.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.session_state.confidence_enabled = st.toggle(
-            "Confidence Scoring",
-            value=st.session_state.get("confidence_enabled", True),
-            key="feat_conf",
-            help="After each answer, scores 0-10 how well it is grounded in your documents. Adds 1 LLM call per question.")
-        st.markdown(
-            '<div class="feat-desc" style="margin-top:-.25rem">Scores each answer 0–10 on source grounding. '
-            '<span style="color:var(--amber);font-size:.68rem">+1 API call/question</span></div>',
-            unsafe_allow_html=True)
+        with st.container(border=True):
+            st.session_state.confidence_enabled = st.toggle(
+                "Confidence Scoring",
+                value=st.session_state.get("confidence_enabled", True),
+                key="feat_conf",
+                help="After each answer, scores 0-10 how well it is grounded in your documents. Adds 1 LLM call per question.")
+            st.markdown(
+                '<div class="feat-desc">Scores each answer 0–10 on source grounding. '
+                '<span style="color:var(--amber);font-size:.68rem">+1 API call/question</span></div>',
+                unsafe_allow_html=True)
 
     with c2:
-        st.session_state.fact_check_enabled = st.toggle(
-            "Fact Verification",
-            value=st.session_state.get("fact_check_enabled", False),
-            key="feat_fc",
-            help="Extracts every factual claim and checks each against retrieved chunks. Adds 1-2 LLM calls per question.")
-        st.markdown(
-            '<div class="feat-desc" style="margin-top:-.25rem">Checks every claim against source passages. '
-            '<span style="color:var(--amber);font-size:.68rem">+1–2 API calls/question</span></div>',
-            unsafe_allow_html=True)
+        with st.container(border=True):
+            st.session_state.fact_check_enabled = st.toggle(
+                "Fact Verification",
+                value=st.session_state.get("fact_check_enabled", False),
+                key="feat_fc",
+                help="Extracts every factual claim and checks each against retrieved chunks. Adds 1-2 LLM calls per question.")
+            st.markdown(
+                '<div class="feat-desc">Checks every claim against source passages. '
+                '<span style="color:var(--amber);font-size:.68rem">+1–2 API calls/question</span></div>',
+                unsafe_allow_html=True)
 
     with c3:
-        st.session_state.real_time_search = st.toggle(
-            "Web Search",
-            value=st.session_state.get("real_time_search", False),
-            key="feat_web",
-            help="Augments document retrieval with live Google search results. Requires SERP_API_KEY.")
-        st.markdown(
-            '<div class="feat-desc" style="margin-top:-.25rem">Adds live search results as context. '
-            '<span style="color:var(--amber);font-size:.68rem">+2–5s latency/question</span></div>',
-            unsafe_allow_html=True)
+        with st.container(border=True):
+            st.session_state.real_time_search = st.toggle(
+                "Web Search",
+                value=st.session_state.get("real_time_search", False),
+                key="feat_web",
+                help="Augments document retrieval with live Google search results. Requires SERP_API_KEY.")
+            st.markdown(
+                '<div class="feat-desc">Adds live search results as context. '
+                '<span style="color:var(--amber);font-size:.68rem">+2–5s latency/question</span></div>',
+                unsafe_allow_html=True)
 
     # ── ReAct explanation ──────────────────────────────────────────────────────
     st.markdown("---")
@@ -409,7 +414,7 @@ def _phase3():
         # Show restart button at top
         col_r, col_d, _ = st.columns([1, 1, 3])
         with col_r:
-            if st.button("New analysis", key="restart_btn", use_container_width=True):
+            if st.button("New analysis", key="restart_btn", use_container_width=True, icon=":material/refresh:"):
                 for k in ("processing_done","output_data","wizard_phase","auto_config",
                           "indexes_built","retriever","reranker_obj","embedder","doc_summaries"):
                     if k == "wizard_phase": st.session_state[k] = 1
@@ -422,8 +427,8 @@ def _phase3():
                 st.download_button(
                     f"Download {st.session_state.output_format}",
                     data=d["bytes"], file_name=f"answers.{d['ext']}",
-                    mime=d["mime"], type="primary", use_container_width=True)
-        st.markdown("---")
+                    mime=d["mime"], type="primary", use_container_width=True,
+                    key="export_qa_btn")
         render_output_section()
 
 
@@ -911,12 +916,6 @@ def _persist_for_current_user(source_paths, chunks_per_doc):
         for path, chunks_for_doc, orig_name in zip(source_paths, chunks_per_doc, original_names):
             if not chunks_for_doc:
                 continue
-            # Overwrite the temp upload's randomised-prefix filename with the
-            # real, human-readable name BEFORE saving, so it's baked into
-            # what's persisted to disk (and therefore correct on every
-            # future load too, not just this run's in-memory chunks).
-            for c in chunks_for_doc:
-                c["source"] = orig_name
             try:
                 with open(path, "rb") as f:
                     fhash = hashlib.sha256(f.read()).hexdigest()[:16]
@@ -929,14 +928,13 @@ def _persist_for_current_user(source_paths, chunks_per_doc):
                     st.session_state.chunk_overlap, st.session_state.embedding_model,
                     source_file_path=path)
                 doc_ids.append(doc_id)
-                # Also stamp the real doc_id directly onto these chunks —
-                # same objects already indexed by FAISS/BM25, so this
-                # updates them everywhere they're used, retrieval included.
-                # Without this, the "View Original Page" citation UI had no
-                # doc_id to look up at all for a document just processed in
-                # THIS run, and fell back to matching chunk["source"]
-                # against the library's filename — which (before the fix
-                # above) could never match the temp path's random prefix.
+                # Without this, "View original page" for a batch-mode answer
+                # always failed: the fallback lookup matches on filename, but
+                # a chunk's c["source"] is the randomized temp upload name
+                # (e.g. "a1b2c3d4_report.pdf"), never the clean name saved
+                # above as orig_name (e.g. "report.pdf") — so it could never
+                # match and always reported "not available", even when the
+                # PDF was persisted successfully right above.
                 for c in chunks_for_doc:
                     c["_doc_id"] = doc_id
             except UploadLimitExceeded as e:

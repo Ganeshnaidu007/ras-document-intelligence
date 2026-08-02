@@ -14,6 +14,11 @@ chats. Documents are processed once and reused across any number of chats.
 """
 import os, hashlib
 import streamlit as st
+try:
+    from streamlit_extras.stylable_container import stylable_container
+    _HAS_EXTRAS = True
+except ImportError:
+    _HAS_EXTRAS = False
 from utils.logger import get_logger
 logger = get_logger(__name__)
 
@@ -67,7 +72,7 @@ def _process_single_upload(uploaded_file, user_id, ocr_enabled, ocr_engine,
     return save_document(
         user_id, uploaded_file.name, chunks, fhash,
         chunking_method, chunk_size, chunk_overlap, embedding_model,
-        source_file_path=path)
+        source_file_path=path), len(chunks)
 
 
 def apply_doc_selection(user_id, session_id, doc_ids):
@@ -102,9 +107,10 @@ def _load_session_into_view(user_id, session_id):
     history = user_store.get_session_history(session_id)
     chat_history = []
     for turn in history:
-        chat_history.append({"role": "user", "content": turn["question"]})
+        ts = _format_ts(turn.get("timestamp"))
+        chat_history.append({"role": "user", "content": turn["question"], "_ts": ts})
         chat_history.append({"role": "assistant", "content": turn["answer"],
-                             "trace": [], "sources": [], "_question": turn["question"]})
+                             "trace": [], "sources": [], "_question": turn["question"], "_ts": ts})
     st.session_state.chat_history = chat_history
 
     if s["doc_ids"]:
@@ -121,7 +127,7 @@ def _render_sidebar(user_id):
         current_id = st.session_state.get("chat_session_id")
         user_store.prune_empty_sessions(user_id, keep_session_id=current_id)
 
-        if st.button("＋ New chat", use_container_width=True, key="new_chat_btn", type="primary"):
+        if st.button("New chat", icon=":material/add:", use_container_width=True, key="new_chat_btn", type="primary"):
             # Never create a second blank chat: if the chat that's already
             # open has no messages in it yet, clicking "New chat" again is a
             # no-op on the session itself — just reset the live view (in
@@ -139,7 +145,7 @@ def _render_sidebar(user_id):
             _load_session_into_view(user_id, new_id)
             st.rerun()
 
-        st.markdown('<div class="sidebar-section-label">Chats</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-section-label">Recent Chats</div>', unsafe_allow_html=True)
         sessions = user_store.list_chat_sessions(user_id)
         if not sessions:
             st.caption("No chats yet.")
@@ -153,7 +159,7 @@ def _render_sidebar(user_id):
                     _load_session_into_view(user_id, s["id"])
                     st.rerun()
             with c_del:
-                if st.button("", key=f"sess_del_{s['id']}", icon="🗑️",
+                if st.button("", key=f"sess_del_{s['id']}", icon=":material/delete:",
                              help="Delete this chat", use_container_width=True):
                     st.session_state[f"_confirm_del_sess_{s['id']}"] = True
 
@@ -179,16 +185,19 @@ def _render_sidebar(user_id):
                     st.rerun()
 
         st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="sidebar-section-label">Files</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-section-label">My Documents</div>', unsafe_allow_html=True)
 
         from db.user_store import uploads_remaining_today, UploadLimitExceeded
         remaining = uploads_remaining_today(user_id)
         st.caption(f"{remaining} upload(s) left today")
+        st.markdown('<div class="helper-note">You can upload multiple PDFs, DOCX, or TXT files at once. '
+                    'Supported: PDF, DOCX, TXT.</div>',
+                    unsafe_allow_html=True)
 
         uploaded = st.file_uploader("Add files", key="chat_lib_uploader",
                                     accept_multiple_files=True, label_visibility="collapsed",
                                     disabled=(remaining <= 0))
-        if uploaded and st.button("Process & add", use_container_width=True,
+        if uploaded and st.button("Process & add", icon=":material/upload:", use_container_width=True,
                                   key="lib_process_btn", disabled=(remaining <= 0)):
             if len(uploaded) > remaining:
                 st.error(f"{len(uploaded)} files but only {remaining} left today.")
@@ -207,8 +216,12 @@ def _render_sidebar(user_id):
                     chunk_overlap=st.session_state.get("chunk_overlap", 50),
                     embedding_model=st.session_state.get("embedding_model", "all-MiniLM-L6-v2"),
                 )
-                with st.spinner(f"Processing {len(uploaded)} file(s)..."):
-                    errors, new_doc_ids = [], []
+                import time
+                t0 = time.time()
+                with st.status(f"Processing {len(uploaded)} file(s)...", expanded=True) as status:
+                    status.write("Uploading files...")
+                    errors, new_doc_ids, total_chunks = [], [], 0
+                    status.write("Extracting text (OCR where needed), chunking, and embedding...")
                     # Parallel, not one-at-a-time: parsing + chunking + embedding
                     # for each file is independent work, so N files no longer
                     # takes N times as long — capped at 4 concurrent so it
@@ -218,16 +231,26 @@ def _render_sidebar(user_id):
                         for fut in concurrent.futures.as_completed(futures):
                             f = futures[fut]
                             try:
-                                doc_id = fut.result()
-                                if doc_id:
+                                result = fut.result()
+                                if result:
+                                    doc_id, n_chunks = result
                                     new_doc_ids.append(doc_id)
+                                    total_chunks += n_chunks
                             except UploadLimitExceeded as e:
                                 errors.append(str(e))
                             except Exception:
                                 logger.exception(f"Failed to process {f.name}")
                                 errors.append(f"{f.name}: couldn't be processed.")
+                    status.write("Indexing into your knowledge base...")
+                    elapsed = time.time() - t0
+                    status.update(label="Processing complete", state="complete", expanded=False)
                 if errors:
                     st.error(errors[0])
+                if new_doc_ids:
+                    st.session_state["_last_build_status"] = {
+                        "files": len(new_doc_ids), "chunks": total_chunks,
+                        "model": cfg["embedding_model"], "elapsed": elapsed,
+                    }
                 if new_doc_ids:
                     # Belongs to THIS chat right away — no separate "select
                     # + apply" step needed before it can be used to answer
@@ -236,61 +259,126 @@ def _render_sidebar(user_id):
                     combined = list(dict.fromkeys(
                         list(st.session_state.get("chat_doc_ids", [])) + new_doc_ids))
                     apply_doc_selection(user_id, session_id, combined)
-                    st.success(f"Added and ready to use in this chat "
-                               f"({len(new_doc_ids)} file{'s' if len(new_doc_ids)!=1 else ''}).")
+                    # Auto-workflow: uploaded doc(s) are already selected + active
+                    # (apply_doc_selection above) and this sidebar only ever
+                    # renders inside Chat Mode, so there's no extra "select /
+                    # switch page" step for the user — just surface the ready
+                    # state and let them type straight into the chat input.
+                    st.toast("Your documents are ready. Ask anything.", icon=":material/check_circle:")
+                    st.session_state["_docs_just_readied"] = True
                 st.rerun()
 
         docs = user_store.list_user_documents(user_id)
+        if docs:
+            st.markdown('<div class="sidebar-section-label" style="margin-top:.9rem">Uploaded Files</div>',
+                        unsafe_allow_html=True)
         if not docs:
-            st.caption("No files yet — upload one above.")
+            st.markdown(
+                '<div class="empty-state-cta-wrap" style="padding:2rem 0.5rem">'
+                '<div class="empty-illustration">'
+                '<svg width="32" height="32" viewBox="0 0 24 24" fill="none">'
+                '<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="white"/>'
+                '<path d="M15 2v5h5" fill="white" opacity=".6"/></svg></div>'
+                '<div class="empty-state-title">No documents uploaded yet</div>'
+                '<div class="empty-state-sub">Upload a document above to begin chatting.</div>'
+                '</div>', unsafe_allow_html=True)
         else:
             current_ids = set(st.session_state.get("chat_doc_ids", []))
             picked = []
             for d in docs:
-                row_pick, row_rename, row_del = st.columns([6, 1.4, 1.4])
-                with row_pick:
-                    checked = st.checkbox(f"{d['filename']}  ·  {d['num_chunks']} chunks",
-                                          value=d["id"] in current_ids, key=f"doc_pick_{d['id']}")
-                    if checked:
-                        picked.append(d["id"])
-                with row_rename:
-                    if st.button("", key=f"doc_rename_btn_{d['id']}", icon="✏️",
-                                 help="Rename", use_container_width=True):
-                        st.session_state[f"_renaming_{d['id']}"] = True
-                with row_del:
-                    if st.button("", key=f"doc_del_btn_{d['id']}", icon="🗑️",
-                                 help="Delete", use_container_width=True):
-                        st.session_state[f"_confirm_del_{d['id']}"] = True
+                is_selected = d["id"] in current_ids
+                ext = (d["filename"].rsplit(".", 1)[-1].upper() if "." in d["filename"] else "FILE")[:4]
 
-                if st.session_state.get(f"_renaming_{d['id']}"):
-                    new_name = st.text_input("New name", value=d["filename"],
-                                             key=f"doc_rename_input_{d['id']}",
-                                             label_visibility="collapsed")
-                    c_save, c_cancel = st.columns(2)
-                    if c_save.button("Save", key=f"doc_rename_save_{d['id']}", use_container_width=True):
-                        from db.user_store import rename_document
-                        rename_document(d["id"], user_id, new_name)
-                        st.session_state.pop(f"_renaming_{d['id']}", None)
-                        st.rerun()
-                    if c_cancel.button("Cancel", key=f"doc_rename_cancel_{d['id']}", use_container_width=True):
-                        st.session_state.pop(f"_renaming_{d['id']}", None)
-                        st.rerun()
+                border_css = ("border:1px solid var(--accent)!important;"
+                              "box-shadow:0 0 0 1px var(--accent),0 4px 14px rgba(99,102,241,.18)!important;"
+                              if is_selected else "border:1px solid var(--border)!important;")
+                if _HAS_EXTRAS:
+                    card_ctx = stylable_container(
+                        key=f"doccard_{d['id']}",
+                        css_styles=f"""
+                        {{
+                            {border_css}
+                            background: var(--card);
+                            border-radius: 12px;
+                            padding: .6rem .8rem .3rem;
+                            margin-bottom: .5rem;
+                        }}
+                        """)
+                else:
+                    card_ctx = st.container(border=True)
 
-                if st.session_state.get(f"_confirm_del_{d['id']}"):
-                    st.warning(f"Delete **{d['filename']}**? This can't be undone.")
-                    c_yes, c_no = st.columns(2)
-                    if c_yes.button("Yes, delete", key=f"doc_del_yes_{d['id']}", use_container_width=True):
-                        from db.user_store import delete_document
-                        delete_document(d["id"], user_id)
-                        st.session_state.pop(f"_confirm_del_{d['id']}", None)
-                        st.session_state.pop(f"chat_doc_ids", None)
-                        st.success(f"Deleted {d['filename']}.")
-                        st.rerun()
-                    if c_no.button("Cancel", key=f"doc_del_no_{d['id']}", use_container_width=True):
-                        st.session_state.pop(f"_confirm_del_{d['id']}", None)
-                        st.rerun()
+                with card_ctx:
+                    selected_tag = ' · <span style="color:var(--accent2)">Selected</span>' if is_selected else ""
+                    st.markdown(
+                        f'<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem">'
+                        f'<div class="doc-icon">{ext}</div>'
+                        f'<div class="doc-meta">'
+                        f'<div class="doc-name" title="{d["filename"]}">{d["filename"]}</div>'
+                        f'<div class="doc-sub">{d["num_chunks"]} chunks · {d.get("embedding_model","")}'
+                        f'{selected_tag}</div>'
+                        f'</div></div>', unsafe_allow_html=True)
+                    row_pick, row_dl, row_rename, row_del = st.columns([5.2, 1.2, 1.2, 1.2])
+                    with row_pick:
+                        checked = st.checkbox("Use in this chat", value=is_selected,
+                                              key=f"doc_pick_{d['id']}", label_visibility="collapsed")
+                        if checked:
+                            picked.append(d["id"])
+                    with row_dl:
+                        src_path = user_store.get_document_source_path(d["id"], user_id)
+                        # Guard against re-reading a huge file into memory on
+                        # every sidebar rerun — Streamlit's download_button needs
+                        # the bytes up front (no true lazy download), so cap what
+                        # gets auto-loaded here; bigger originals still show a
+                        # button, just disabled with an explanatory tooltip.
+                        ok = src_path and os.path.exists(src_path) and os.path.getsize(src_path) < 15_000_000
+                        if ok:
+                            with open(src_path, "rb") as _f:
+                                st.download_button("", data=_f.read(), file_name=d["filename"],
+                                                   key=f"doc_dl_{d['id']}", icon=":material/download:",
+                                                   help="Download original file", use_container_width=True)
+                        else:
+                            st.button("", key=f"doc_dl_ph_{d['id']}", icon=":material/download:", disabled=True,
+                                     help="Original file not available" if not src_path
+                                          else "File too large for quick download here",
+                                     use_container_width=True)
+                    with row_rename:
+                        if st.button("", key=f"doc_rename_btn_{d['id']}", icon=":material/edit:",
+                                     help="Rename", use_container_width=True):
+                            st.session_state[f"_renaming_{d['id']}"] = True
+                    with row_del:
+                        if st.button("", key=f"doc_del_btn_{d['id']}", icon=":material/delete:",
+                                     help="Delete", use_container_width=True):
+                            st.session_state[f"_confirm_del_{d['id']}"] = True
 
-            if st.button("Use selected files in this chat", use_container_width=True, key="apply_docs_btn"):
+                    if st.session_state.get(f"_renaming_{d['id']}"):
+                        new_name = st.text_input("New name", value=d["filename"],
+                                                 key=f"doc_rename_input_{d['id']}",
+                                                 label_visibility="collapsed")
+                        c_save, c_cancel = st.columns(2)
+                        if c_save.button("Save", key=f"doc_rename_save_{d['id']}", use_container_width=True):
+                            from db.user_store import rename_document
+                            rename_document(d["id"], user_id, new_name)
+                            st.session_state.pop(f"_renaming_{d['id']}", None)
+                            st.rerun()
+                        if c_cancel.button("Cancel", key=f"doc_rename_cancel_{d['id']}", use_container_width=True):
+                            st.session_state.pop(f"_renaming_{d['id']}", None)
+                            st.rerun()
+
+                    if st.session_state.get(f"_confirm_del_{d['id']}"):
+                        st.warning(f"Delete **{d['filename']}**? This can't be undone.")
+                        c_yes, c_no = st.columns(2)
+                        if c_yes.button("Yes, delete", key=f"doc_del_yes_{d['id']}", use_container_width=True):
+                            from db.user_store import delete_document
+                            delete_document(d["id"], user_id)
+                            st.session_state.pop(f"_confirm_del_{d['id']}", None)
+                            st.session_state.pop(f"chat_doc_ids", None)
+                            st.success(f"Deleted {d['filename']}.")
+                            st.rerun()
+                        if c_no.button("Cancel", key=f"doc_del_no_{d['id']}", use_container_width=True):
+                            st.session_state.pop(f"_confirm_del_{d['id']}", None)
+                            st.rerun()
+
+            if st.button("Build Knowledge Base from Selection", use_container_width=True, key="apply_docs_btn"):
                 session_id = st.session_state.get("chat_session_id")
                 if session_id and picked:
                     title = ", ".join(next(x["filename"] for x in docs if x["id"] == i) for i in picked[:2])
@@ -327,28 +415,26 @@ def _render_source_citation(c: dict, key_prefix: str, user_id):
         f'<div class="src-row-head"><b>{filename}</b> · Page {page}{conf_badge}</div>'
         f'<div class="cite-snippet">{c.get("text","")[:280]}...</div>'
         f'</div>', unsafe_allow_html=True)
-
-    # Page-image rendering only makes sense for PDF sources — .txt/.docx
-    # documents never get a permanent PDF copy made (see save_document),
-    # so there's nothing to view. Showing the button anyway just leads to
-    # a dead-end "isn't available" message; the quoted snippet above is
-    # already the right stand-in for those.
-    if not filename.lower().endswith(".pdf"):
-        return
-
+    is_pdf_source = filename.lower().endswith(".pdf")
     show_key = f"_showpdf_{key_prefix}"
-    if st.button("View original page", key=f"pdfbtn_{key_prefix}", icon="🔍",
-                 help="View this page in the PDF"):
-        st.session_state[show_key] = not st.session_state.get(show_key, False)
+    if is_pdf_source:
+        if st.button("View original page", key=f"pdfbtn_{key_prefix}", icon=":material/visibility:",
+                     help="View this page in the PDF"):
+            st.session_state[show_key] = not st.session_state.get(show_key, False)
+    else:
+        # .txt/.docx sources never have a rendered page image to show — no
+        # button at all, rather than one that always dead-ends into "not
+        # available" and reads as broken.
+        st.caption("Page preview is only available for PDF sources.")
 
-    if st.session_state.get(show_key):
+    if is_pdf_source and st.session_state.get(show_key):
         from db import user_store
         from utils.pdf_highlight import render_highlighted_page
         # Prefer the doc_id attached directly to the chunk (see
-        # load_documents_chunks / _persist_for_current_user) — that's set
-        # directly from the real save, and survives a rename. Chunks that
-        # don't carry one (e.g. web-search results) fall back to matching
-        # by filename.
+        # load_documents_chunks) — that survives a rename. Chunks that
+        # don't carry one (e.g. web-search results, or chunks from a batch
+        # run that hasn't been through that loader) fall back to matching
+        # by filename, same as before.
         doc_id = c.get("_doc_id")
         if not doc_id:
             doc_lookup = {d["filename"]: d["id"] for d in user_store.list_user_documents(user_id)}
@@ -362,6 +448,23 @@ def _render_source_citation(c: dict, key_prefix: str, user_id):
                 st.image(img, caption=f"{filename} — page {page}", use_container_width=True)
             else:
                 st.caption("Couldn't render that page.")
+
+
+def _format_ts(raw) -> str:
+    """Best-effort HH:MM from whatever timestamp format the DB stored —
+    purely cosmetic, never raises."""
+    if not raw:
+        return ""
+    try:
+        from datetime import datetime
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+            try:
+                return datetime.strptime(str(raw)[:len(fmt.replace('%f',''))+6], fmt).strftime("%H:%M")
+            except ValueError:
+                continue
+        return str(raw)[11:16] if len(str(raw)) >= 16 else ""
+    except Exception:
+        return ""
 
 
 def _status_label(tool: str, inp: str) -> str:
@@ -391,7 +494,7 @@ def _render_regenerate_row(msg: dict, provider: str, key_prefix: str):
     tried = msg.setdefault("_tried_providers", [msg.get("_provider", provider)])
     prev_conf = msg.get("_confidence", {}).get("score") if msg.get("_confidence") else None
 
-    if st.button("", key=f"regen_{key_prefix}", icon="🔄",
+    if st.button("", key=f"regen_{key_prefix}", icon=":material/refresh:",
                  help="Regenerate this answer with a different model"):
         from llm.regenerate import regenerate
         from utils.feedback_store import store_feedback
@@ -431,11 +534,38 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
     embedder  = st.session_state.get("embedder")
 
     if not retriever:
-        st.markdown('<div class="empty-state">'
-                    '<div class="empty-state-title">Select a file to start chatting</div>'
-                    '<div class="empty-state-sub">Pick one or more files from the sidebar, '
-                    'or upload a new one.</div></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="empty-state-cta-wrap">'
+            '<div class="empty-illustration">'
+            '<svg width="40" height="40" viewBox="0 0 24 24" fill="none">'
+            '<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="white"/>'
+            '<path d="M15 2v5h5" fill="white" opacity=".6"/></svg></div>'
+            '<div class="empty-state-title">No documents selected yet</div>'
+            '<div class="empty-state-sub">Upload a document to begin chatting — pick one or more '
+            'files from the sidebar, or drop a new one in.</div></div>',
+            unsafe_allow_html=True)
         return
+
+    if st.session_state.pop("_docs_just_readied", False):
+        st.markdown(
+            '<div class="ready-banner">&nbsp;<b>Your documents are ready.</b> Ask anything below.</div>',
+            unsafe_allow_html=True)
+
+    build_status = st.session_state.pop("_last_build_status", None)
+    if build_status:
+        st.markdown(
+            '<div class="helper-note" style="background:rgba(34,197,94,.08);'
+            'border-color:rgba(34,197,94,.25)">'
+            f'<b>Knowledge build status</b> &nbsp;·&nbsp; '
+            f'<b>{build_status["files"]}</b> file(s) &nbsp;·&nbsp; '
+            f'<b>{build_status["chunks"]}</b> chunks &nbsp;·&nbsp; '
+            f'model: <b>{build_status["model"]}</b> &nbsp;·&nbsp; '
+            f'{build_status["elapsed"]:.1f}s'
+            '</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="helper-note">ℹ️ Responses are generated only from the selected document(s) '
+        'in the sidebar.</div>', unsafe_allow_html=True)
 
     if "chat_conv_memory" not in st.session_state:
         from agent.conversation_memory import ConversationMemory
@@ -454,8 +584,10 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
         )
 
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"], avatar=None):
+        with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
+            if msg.get("_ts"):
+                st.markdown(f'<div class="chat-timestamp">{msg["_ts"]}</div>', unsafe_allow_html=True)
             if msg["role"] == "assistant":
                 _render_regenerate_row(msg, provider, key_prefix=f"hist_{id(msg)}")
 
@@ -464,12 +596,15 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
         st.session_state.chat_semantic_cache = SemanticCache()
     sem_cache = st.session_state.chat_semantic_cache
 
-    question = st.chat_input("Ask a question about your selected documents...")
+    question = st.chat_input("Ask anything about your uploaded documents...")
 
     if question:
-        st.session_state.chat_history.append({"role": "user", "content": question})
-        with st.chat_message("user", avatar=None):
+        from datetime import datetime
+        now_ts = datetime.now().strftime("%H:%M")
+        st.session_state.chat_history.append({"role": "user", "content": question, "_ts": now_ts})
+        with st.chat_message("user"):
             st.markdown(question)
+            st.markdown(f'<div class="chat-timestamp">{now_ts}</div>', unsafe_allow_html=True)
 
         # Cache is scoped to the current document selection — same question
         # against a different set of files is a different question.
@@ -483,11 +618,12 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
         # history loop above will use on any rerun (e.g. right after a
         # feedback click), so a Good/Poor rating doesn't "lose" the turn or
         # reset to unrated because the key changed underneath it.
-        msg = {"role": "assistant", "content": "", "trace": [], "sources": [], "_question": question}
+        msg = {"role": "assistant", "content": "", "trace": [], "sources": [], "_question": question,
+               "_ts": now_ts}
         st.session_state.chat_history.append(msg)
         fb_key = f"hist_{id(msg)}"
 
-        with st.chat_message("assistant", avatar=None):
+        with st.chat_message("assistant"):
             answer_placeholder = st.empty()
             trace_steps, full_answer, result_chunks = [], "", []
 
@@ -496,7 +632,7 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
                 result_chunks = cached.get("chunks", [])
                 trace_steps   = []
                 answer_placeholder.markdown(full_answer)
-                st.caption(f"⚡ Answered from cache (similar to: \"{cached['_cache_original'].split('::',1)[-1][:60]}\")")
+                st.caption(f"Answered from cache (similar to: \"{cached['_cache_original'].split('::',1)[-1][:60]}\")")
             elif streaming:
                 # Status label keeps changing as each real reasoning step
                 # happens (retrieving, searching, refining, synthesising) —
@@ -515,7 +651,7 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
                         elif event_type == "done":
                             full_answer   = payload["answer"]
                             result_chunks = payload.get("chunks", [])
-                    status.update(state="complete")
+                    status.update(label="Answer ready", state="complete")
                 answer_placeholder.markdown(full_answer)
             else:
                 with st.status("Reading your documents...", expanded=False) as status:
@@ -523,7 +659,7 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
                     full_answer   = result["answer"]
                     result_chunks = result.get("chunks", [])
                     trace_steps   = result.get("trace", [])
-                    status.update(state="complete")
+                    status.update(label="Answer ready", state="complete")
                 answer_placeholder.markdown(full_answer)
 
             if not cached:
@@ -533,6 +669,7 @@ def render_chat_mode(web_searcher, provider: str, streaming: bool):
             msg["trace"]     = trace_steps
             msg["sources"]   = result_chunks
             msg["_provider"] = provider
+            st.markdown(f'<div class="chat-timestamp">{now_ts}</div>', unsafe_allow_html=True)
             _render_regenerate_row(msg, provider, key_prefix=fb_key)
 
             # There's no separate Good/Poor button anymore — Regenerate IS
